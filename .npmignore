@@ -1,0 +1,31 @@
+# Dépendances locales (npm utilise son propre tar, donc inutile de publier)
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+
+# VCS
+.git
+.gitignore
+.github/
+
+# Tests / Dev
+test/
+tests/
+coverage/
+*.spec.js
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Build / CI
+*.tgz
+.env
+docker-compose.yml
+Dockerfile
+
+# Docs non nécessaires
+*.md~
