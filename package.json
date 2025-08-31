@@ -1,5 +1,5 @@
 {
-  "name": "d4rts-simple-node-scraper",
+  "name": "@d4rts/node-scraper",
   "version": "0.1.0",
   "description": "Simple node web-scraper",
   "main": "src/Scraper.js",
