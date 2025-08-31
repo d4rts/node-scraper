@@ -1,15 +1,9 @@
 {
   "name": "@d4rts/node-scraper",
-  "version": "0.2.2",
+  "version": "1.0.0",
   "description": "Simple node web-scraper",
   "main": "src/Scraper.js",
-  "keywords": [
-    "scraper",
-    "concurrency",
-    "http",
-    "request",
-    "pool"
-  ],
+  "keywords": ["scraper", "concurrency", "http", "request", "pool"],
   "author": "Bastien Rougé <bastien.rouge@gmail.com>",
   "license": "MIT",
   "repository": {
@@ -20,25 +14,32 @@
     "url": "https://github.com/d4rts/node-scraper/issues"
   },
   "homepage": "https://github.com/d4rts/node-scraper#readme",
-  "engines": {
-    "node": "^13"
-  },
   "type": "commonjs",
   "exports": {
-    ".": {
-      "require": "./src/Scraper.js"
-    }
+    ".": { "require": "./src/Scraper.js" }
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
     "request": "2.88.2",
-    "socks-proxy-agent": "^6.2.0"
+    "socks-proxy-agent": "^7.0.0",
+    "tough-cookie": "^2.5.0"
   },
   "devDependencies": {
     "eslint": "^9.0.0",
-    "@types/node": "^13"
+    "@types/node": "^18"
   },
   "scripts": {
     "test": "node -e \"console.log('no tests yet')\"",
     "lint": "eslint src"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
