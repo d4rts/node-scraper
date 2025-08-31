@@ -9,18 +9,40 @@ const SocksProxyAgent = require('socks-proxy-agent');
 
 /**
  * @callback DownloadedCallback
- *  * @param {string} content
- *  * @param {{Object<string, *>} customParams
- *  * @returns {void|null}
+ *  @param {string} content
+ *  @param {{Object<string, *>} customParams
+ *  @returns {void|null}
+ */
+
+/**
+ * @callback ExceptionCallback
+ *  @param {Error|string} err - ErrorOccured from DownloadedCallback
+ *  @param {import('./Request')} scraperRequest - ScraperRequest
+ */
+
+/**
+ * @callback EndCallback
  */
 
 class Scraper {
   constructor() {
+    this.logStandartTty = true;
+    this.logErrorsTty = true;
+
     this.seed = new Seed();
-    this.endCallback = null;
+
     this.maxPoolSocket = 50;
     this.maxTreatmentPool = 200;
+
+    /** @type {EndCallback|null} */
+    this.endCallback = null;
+
+    /** @type {ExceptionCallback|null} */
     this.exceptionCallback = null;
+
+    /** @type {DownloadedCallback|null} */
+    this.globalRequestCallback = null;
+
     this.globalRequestParams = {
       type: 'GET',
       reinjectCookies: true,
@@ -45,14 +67,14 @@ class Scraper {
   /**
    * @param {string} url
    * @param {DownloadedCallback} callback
-   * @param {Object<string, *>} params
-   * @param {Object<string, *>} customParams
+   * @param {Object<string, *>} params - override Scraper.globalRequestParams
+   * @param {Object<string, *>} customParams - Your custom params
    */
   addUrl(url, callback = null, params = {}, customParams = {}) {
     const scraperRequest = this._generateRequest(url, params);
 
     if (! callback) {
-      callback = this.globalRequestParams.callback;
+      callback = this.globalRequestCallback;
     }
     const seedElement = this._generateSeedElement(scraperRequest, callback, customParams);
     this.seed.push(seedElement);
@@ -108,31 +130,31 @@ class Scraper {
     try {
       await Request(options, async function (err, res, body) {
         if (err) {
-          Utils.printerr(err + " " + options.url);
+          Utils.printerr(err + " " + options.url, instance.logErrorsTty);
           instance.seed.treatingElementToWaiting(seedElement);
           instance._checkAndProcessSeed();
         } else {
-          Utils.print("Download OK : " + seedElement.request.url);
+          Utils.print("Download OK : " + seedElement.request.url, this.logStandartTty);
           try {
             let ret = await seedElement.callback(body, seedElement.customParams);
             if (ret === false) {
               instance.seed.treatingElementToWaiting(seedElement);
-              Utils.printerr("Error, retry later " + options.url);
+              Utils.printerr("Error, retry later " + options.url, instance.logErrorsTty);
             } else {
               instance.seed.treatingElementToEnded(seedElement);
             }
           } catch (e) {
             instance.seed.treatingElementToEnded(seedElement);
-            Utils.printerr(e);
+            Utils.printerr(e, instance.logErrorsTty);
             if (instance.exceptionCallback) {
-              instance.exceptionCallback();
+              instance.exceptionCallback(e, seedElement.request);
             }
           }
           instance._checkAndProcessSeed();
         }
       });
     } catch (e) {
-      Utils.printerr(e);
+      Utils.printerr(e, instance.logErrorsTty);
       instance.seed.treatingElementToWaiting(seedElement);
     }
   }

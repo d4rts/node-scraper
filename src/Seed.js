@@ -1,9 +1,11 @@
 const Utils = require('./Utils');
 
 class Seed {
-  constructor() {
+  constructor(logStandartTty = true, logErrorsTty = true) {
     /** @type {import('src/SeedElement')[]} */
     this.seed = [];
+    this.logStandartTty = logStandartTty;
+    this.logErrorsTty = logErrorsTty;
   }
 
 
@@ -21,7 +23,7 @@ class Seed {
 
     if (! added || seedElement.forceSeed) {
       this.seed.push(seedElement);
-      Utils.print("Add to seed : " + seedElement.request.url);
+      Utils.print("Add to seed : " + seedElement.request.url, this.logStandartTty);
     }
   }
 
