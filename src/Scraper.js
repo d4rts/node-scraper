@@ -29,7 +29,7 @@ class Scraper {
     this.logStandartTty = true;
     this.logErrorsTty = true;
 
-    this.seed = new Seed();
+    this.seed = new Seed(this.logStandartTty, this.logErrorsTty);
 
     this.maxPoolSocket = 50;
     this.maxTreatmentPool = 200;
@@ -84,6 +84,22 @@ class Scraper {
       this._checkAndProcessSeed();
   }
 
+  /**
+   * @param {boolean} logStandartTty
+   */
+  setLogStandartTty(logStandartTty) {
+    this.logStandartTty = logStandartTty;
+    this.seed.logStandartTty = logStandartTty;
+  }
+
+  /**
+   * @param {boolean} logErrorsTty
+   */
+  setLogErrorsTty(logErrorsTty) {
+    this.logErrorsTty = logErrorsTty;
+    this.seed.logErrorsTty = logErrorsTty;
+  }
+
   _checkAndProcessSeed() {
     let seedElement = null;
     while (
@@ -134,7 +150,7 @@ class Scraper {
           instance.seed.treatingElementToWaiting(seedElement);
           instance._checkAndProcessSeed();
         } else {
-          Utils.print("Download OK : " + seedElement.request.url, this.logStandartTty);
+          Utils.print("Download OK : " + seedElement.request.url, instance.logStandartTty);
           try {
             let ret = await seedElement.callback(body, seedElement.customParams);
             if (ret === false) {
