@@ -1,6 +1,6 @@
 {
   "name": "@d4rts/node-scraper",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Simple node web-scraper",
   "main": "src/Scraper.js",
   "keywords": ["scraper", "concurrency", "http", "request", "pool"],

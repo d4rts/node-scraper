@@ -43,6 +43,9 @@ class Scraper {
     /** @type {DownloadedCallback|null} */
     this.globalRequestCallback = null;
 
+    this.agentOptions = null;
+    this.forceIpv4 = false;
+
     this.globalRequestParams = {
       type: 'GET',
       reinjectCookies: true,
@@ -141,6 +144,12 @@ class Scraper {
       options.agent = new SocksProxyAgent.SocksProxyAgent(
           "socks5://" + seedElement.request.proxy.host + ":" + seedElement.request.proxy.port
       );
+    } else if (this.agentOptions) {
+      options['agentOptions'] = this.agentOptions;
+    }
+
+    if (this.forceIpv4) {
+      options['family'] = 4;
     }
 
     try {
