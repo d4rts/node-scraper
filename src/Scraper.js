@@ -76,7 +76,7 @@ class Scraper {
     if (! callback) {
       callback = this.globalRequestCallback;
     }
-    const seedElement = this._generateSeedElement(scraperRequest, callback, customParams);
+    const seedElement = this._generateSeedElement(scraperRequest, callback, params, customParams);
     this.seed.push(seedElement);
   }
 
@@ -226,10 +226,11 @@ class Scraper {
     return scraperRequest;
   }
 
-  _generateSeedElement(scraperRequest, callback, customParams) {
+  _generateSeedElement(scraperRequest, callback, params, customParams) {
     const seedElement = new SeedElement(scraperRequest)
     seedElement.callback = callback;
     seedElement.customParams = customParams;
+    seedElement.forceSeed = params.forceSeed ? params.forceSeed : this.globalRequestParams.forceSeed;
     return seedElement;
   }
 }
