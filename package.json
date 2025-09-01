@@ -1,9 +1,15 @@
 {
   "name": "@d4rts/node-scraper",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Simple node web-scraper",
   "main": "src/Scraper.js",
-  "keywords": ["scraper", "concurrency", "http", "request", "pool"],
+  "keywords": [
+    "scraper",
+    "concurrency",
+    "http",
+    "request",
+    "pool"
+  ],
   "author": "Bastien Rougé <bastien.rouge@gmail.com>",
   "license": "MIT",
   "repository": {
@@ -16,7 +22,9 @@
   "homepage": "https://github.com/d4rts/node-scraper#readme",
   "type": "commonjs",
   "exports": {
-    ".": { "require": "./src/Scraper.js" }
+    ".": {
+      "require": "./src/Scraper.js"
+    }
   },
   "files": [
     "src/",
@@ -27,6 +35,7 @@
     "node": ">=18"
   },
   "dependencies": {
+    "playwright": "^1.55.0",
     "request": "2.88.2",
     "socks-proxy-agent": "^7.0.0",
     "tough-cookie": "^2.5.0"
