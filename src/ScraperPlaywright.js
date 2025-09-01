@@ -51,6 +51,9 @@ class ScraperPlaywright {
     /**
      * @param {string} url
      * @param {{
+     *   type?: 'GET'|'POST'|'PUT'|'PATCH'|'DELETE',
+     *   postData?: Record<string, string|number|boolean>, // x-www-form-urlencoded
+     *   jsonData?: any,                                    // application/json
      *   timeoutMs?: number,
      *   extraWaitMs?: number,
      *   headers?: Record<string,string>,
@@ -61,6 +64,10 @@ class ScraperPlaywright {
      */
     async fetch(url, opts) {
         opts = opts || {};
+        const method = (opts.type || 'GET').toUpperCase();
+        const postData = opts.postData;
+        const jsonData = opts.jsonData;
+
         const timeoutMs = (opts.timeoutMs !== undefined) ? opts.timeoutMs : this.defaultTimeoutMs;
         const extraWaitMs = (opts.extraWaitMs !== undefined) ? opts.extraWaitMs : this.defaultExtraWaitMs;
         const headers = opts.headers || {};
@@ -96,14 +103,18 @@ class ScraperPlaywright {
         const page = await context.newPage();
 
         try {
-            // 1) goto initial pour éviter de planter sur redirections (net::ERR_ABORTED)
+            // 1) “warmup” pour passer le challenge CF :
+            //    - en GET: on va directement sur l’URL
+            //    - en POST/…: on va sur l’origin pour obtenir les cookies
+            const target = new URL(url);
+            const warmupUrl = (method === 'GET') ? url : (target.origin + '/');
+
             try {
-                await page.goto(url, { waitUntil: 'commit', timeout: timeLeft() });
+                await page.goto(warmupUrl, { waitUntil: 'commit', timeout: timeLeft() });
             } catch (e) {
                 if (String(e).indexOf('ERR_ABORTED') === -1) throw e;
             }
 
-            // 2) boucle d’attente Cloudflare
             for (var step = 0; step < this.maxSteps; step++) {
                 try { await page.waitForLoadState('networkidle', { timeout: Math.min(timeLeft(), 15000) }); }
                 catch (_) {}
@@ -113,32 +124,54 @@ class ScraperPlaywright {
                 const titleNow = await page.title();
                 const stillCF = ScraperPlaywright.isCloudflareChallenge(htmlNow) || /Just a moment/i.test(titleNow);
 
-                if (! stillCF) {
-                    const cookies = await context.cookies(page.url());
-                    const finalUrl = page.url();
-
-                    await page.close().catch(function() {});
-                    await context.close().catch(function() {});
-                    return { html: htmlNow, cookies, finalUrl };
-                }
-
+                if (!stillCF) break;
                 if (timeLeft() <= 1) break;
                 await page.waitForTimeout(1200);
             }
 
-            // 3) tentative finale: reload léger
-            try {
-                await page.reload({ waitUntil: 'commit', timeout: timeLeft() });
-                try { await page.waitForLoadState('networkidle', { timeout: Math.min(timeLeft(), 10000) }); } catch (_) {}
-                await page.waitForTimeout(1200);
-            } catch (_) {}
+            // 2) Si GET → on retourne le HTML de la page
+            if (method === 'GET') {
+                // S'assurer d'être bien sur l'URL cible (si warmup ≠ url)
+                if (page.url() !== url) {
+                    try {
+                        await page.goto(url, { waitUntil: 'commit', timeout: timeLeft() });
+                        try { await page.waitForLoadState('networkidle', { timeout: Math.min(timeLeft(), 10000) }); } catch (_){}
+                        await page.waitForTimeout(1200);
+                    } catch (e) {
+                        if (String(e).indexOf('ERR_ABORTED') === -1) throw e;
+                    }
+                }
+                const html = await page.content();
+                const cookies = await context.cookies(page.url());
+                const finalUrl = page.url();
 
-            const html = await page.content();
-            const cookies = await context.cookies(page.url());
-            const finalUrl = page.url();
+                await page.close().catch(function () {});
+                await context.close().catch(function () {});
+                return { html, cookies, finalUrl };
+            }
 
-            await page.close().catch(function() {});
-            await context.close().catch(function() {});
+            // 3) Sinon (POST/PUT/PATCH/DELETE) → on envoie la requête via context.request en réutilisant les cookies
+            const reqHeaders = { ...headers };
+            const fetchOpts = { method };
+
+            if (jsonData != null) {
+                fetchOpts.data = jsonData;
+                if (!reqHeaders['Content-Type']) reqHeaders['Content-Type'] = 'application/json';
+            } else if (postData != null) {
+                // x-www-form-urlencoded
+                fetchOpts.form = postData;
+            }
+            if (Object.keys(reqHeaders).length) {
+                fetchOpts.headers = reqHeaders;
+            }
+
+            const resp = await context.request.fetch(url, fetchOpts);
+            const html = await resp.text();
+            const cookies = await context.cookies(url);
+            const finalUrl = url;
+
+            await page.close().catch(function () {});
+            await context.close().catch(function () {});
             return { html, cookies, finalUrl };
 
         } catch (e) {

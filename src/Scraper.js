@@ -199,7 +199,10 @@ class Scraper {
               proxy: seedElement.request.proxy,
               userDataDir: instance.playwrightWorkingDir,
               timeoutMs: 60000,
-              extraWaitMs: 3000
+              extraWaitMs: 3000,
+              type: seedElement.request.type,
+              jsonData: seedElement.request.jsonData,
+              postData: seedElement.request.postData
             });
 
             body = (typeof pwResult === 'string') ? pwResult : pwResult.html;
