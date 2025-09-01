@@ -222,7 +222,7 @@ class Scraper {
             }
           }
         } catch (e) {
-          Utils.printerr('Playwright fallback failed: ' + (cfErr && cfErr.message ? cfErr.message : cfErr), instance.logErrorsTty);
+          Utils.printerr('Playwright fallback failed: ' + (e && e.message ? e.message : e), instance.logErrorsTty);
           instance.seed.treatingElementToWaiting(seedElement);
           instance._checkAndProcessSeed();
           return;
