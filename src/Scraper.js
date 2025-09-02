@@ -122,8 +122,67 @@ class Scraper {
     }
   }
 
+  async _makeRequestPlaywright(seedElement) {
+    const instance = this;
+
+    try {
+      if (null === instance._pw) {
+        instance._pw = new ScraperPlaywright({
+          timeoutMs: 60000,
+          headless: true,
+          userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+        });
+      }
+      const targetUrl = seedElement.request.url;
+      const headers = {...seedElement.request.headers};
+      delete headers['User-Agent'];
+
+      const pwResult = await instance._pw.fetch(targetUrl, {
+        headers: seedElement.request.headers,
+        proxy: seedElement.request.proxy,
+        userDataDir: instance.playwrightWorkingDir,
+        timeoutMs: 60000,
+        extraWaitMs: 3000,
+        type: seedElement.request.type,
+        jsonData: seedElement.request.jsonData,
+        postData: seedElement.request.postData
+      });
+
+      const body = (typeof pwResult === 'string') ? pwResult : pwResult.html;
+      Utils.print("(Playwright) Download OK : " + seedElement.request.url, instance.logStandartTty);
+      try {
+        let ret = await seedElement.callback(body, seedElement.customParams);
+        if (ret === false) {
+          instance.seed.treatingElementToWaiting(seedElement);
+          Utils.printerr("Error, retry later " + seedElement.request.url, instance.logErrorsTty);
+        } else {
+          instance.seed.treatingElementToEnded(seedElement);
+        }
+      } catch (e) {
+        instance.seed.treatingElementToEnded(seedElement);
+        Utils.printerr(e, instance.logErrorsTty);
+        if (instance.exceptionCallback) {
+          instance.exceptionCallback(e, seedElement.request);
+        }
+      }
+      instance._checkAndProcessSeed();
+    } catch (e) {
+      Utils.printerr('Playwright fallback failed on url:' + seedElement.request.url + " - " + (e && e.message ? e.message : e), instance.logErrorsTty);
+      Utils.printerr(e.stack)
+      instance.seed.treatingElementToWaiting(seedElement);
+      instance._checkAndProcessSeed();
+      return;
+    }
+  }
+
   async _makeRequest(seedElement) {
     const instance = this;
+
+    if (instance.usePlaywright) {
+      await this._makeRequestPlaywright(seedElement);
+      return;
+    }
+
     let options = {
       url     : seedElement.request.url,
       method  : seedElement.request.type,
@@ -169,69 +228,23 @@ class Scraper {
           return;
         }
 
-        var prefix = "";
         //Cloudflare detection, if this.usePlayright is false, send an error
-        try {
-          if (ScraperPlaywright.isCloudflareChallenge(body, res.headers)) {
-            if (!instance.usePlaywright) {
-              if (instance.exceptionCallback) {
-                instance.exceptionCallback(
-                    new Error("Cloudflare Challenge detected, try with parameter playwright=true"),
-                    seedElement.request
-                );
-              }
-              Utils.printerr("Download KO(CloudFlare) : " + seedElement.request.url, instance.logErrorsTty);
-              instance.seed.treatingElementToEnded(seedElement);
-              instance._checkAndProcessSeed();
-              return;
+        if (ScraperPlaywright.isCloudflareChallenge(body, res.headers)) {
+          if (!instance.usePlaywright) {
+            if (instance.exceptionCallback) {
+              instance.exceptionCallback(
+                  new Error("Cloudflare Challenge detected, try with parameter playwright=true"),
+                  seedElement.request
+              );
             }
-
-            prefix = "(Playwright) ";
-            if (null === instance._pw) {
-              instance._pw = new ScraperPlaywright({
-                timeoutMs: 60000,
-                headless: true,
-              });
-            }
-            const targetUrl = seedElement.request.url;
-            const pwResult = await instance._pw.fetch(targetUrl, {
-              headers: seedElement.request.headers,
-              proxy: seedElement.request.proxy,
-              userDataDir: instance.playwrightWorkingDir,
-              timeoutMs: 60000,
-              extraWaitMs: 3000,
-              type: seedElement.request.type,
-              jsonData: seedElement.request.jsonData,
-              postData: seedElement.request.postData
-            });
-
-            body = (typeof pwResult === 'string') ? pwResult : pwResult.html;
-            if (
-                seedElement.request.reinjectCookies
-                && instance.cookieJar
-                && pwResult
-                && Array.isArray(pwResult.cookies)
-                && pwResult.cookies.length
-            ) {
-              const jarUrl = pwResult.finalUrl || targetUrl;
-              for (const c of pwResult.cookies) {
-                const cookieStr = `${c.name}=${c.value}; Path=/`;
-                try {
-                  instance.cookieJar.setCookie(cookieStr, jarUrl); // sync avec request.jar()
-                } catch (e) {
-                  Utils.printerr('[cookie inject error] ' + (e && e.message ? e.message : e), instance.logErrorsTty);
-                }
-              }
-            }
+            Utils.printerr("Download KO(CloudFlare) : " + seedElement.request.url, instance.logErrorsTty);
+            instance.seed.treatingElementToEnded(seedElement);
+            instance._checkAndProcessSeed();
+            return;
           }
-        } catch (e) {
-          Utils.printerr('Playwright fallback failed: ' + (e && e.message ? e.message : e), instance.logErrorsTty);
-          instance.seed.treatingElementToWaiting(seedElement);
-          instance._checkAndProcessSeed();
-          return;
         }
 
-        Utils.print(prefix + "Download OK : " + seedElement.request.url, instance.logStandartTty);
+        Utils.print("Download OK : " + seedElement.request.url, instance.logStandartTty);
         try {
           let ret = await seedElement.callback(body, seedElement.customParams);
           if (ret === false) {
@@ -266,7 +279,7 @@ class Scraper {
         ? params.reinjectCookies
         : this.globalRequestParams.reinjectCookies;
 
-    scraperRequest.headers = this.globalRequestParams.headers;
+    scraperRequest.headers = {...this.globalRequestParams.headers};
     if (params && params.headers) {
       for (let key in params.headers) {
         scraperRequest.headers[key] = params.headers[key];
